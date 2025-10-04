@@ -103,9 +103,8 @@ public class CallActivity extends AppCompatActivity {
             WebView.setWebContentsDebuggingEnabled(true);
         }
 
-        // Clear cache and history
-        webView.clearCache(true);
-        webView.clearHistory();
+        webView.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), MotionEvent.ACTION_DOWN, -1, -1, 0));
+        webView.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, -1, -1, 0));
 
         webView.setWebViewClient(new WebViewClient());
 
