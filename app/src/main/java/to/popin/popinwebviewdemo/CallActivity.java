@@ -15,6 +15,8 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ImageButton;
 import android.widget.Toast;
+import android.os.SystemClock;
+import android.view.MotionEvent;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
