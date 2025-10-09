@@ -20,6 +20,8 @@ import android.view.MotionEvent;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
@@ -28,8 +30,15 @@ import androidx.core.view.WindowInsetsCompat;
 
 public class CallActivity extends AppCompatActivity {
 
+    private static final String[] REQUIRED_PERMISSIONS = {
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+    };
+
     private WebView webView;
     private ImageButton closeButton;
+    private ActivityResultLauncher<String[]> requestPermissionLauncher;
+    private PermissionRequest pendingPermissionRequest;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,21 +50,41 @@ public class CallActivity extends AppCompatActivity {
         webView = findViewById(R.id.webview);
         closeButton = findViewById(R.id.closeButton);
 
+        // Initialize permission launcher
+        requestPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestMultiplePermissions(),
+                result -> {
+                    boolean allPermissionsGranted = true;
+                    for (Boolean granted : result.values()) {
+                        if (!granted) {
+                            allPermissionsGranted = false;
+                            break;
+                        }
+                    }
+
+                    if (allPermissionsGranted && pendingPermissionRequest != null) {
+                        // Grant the WebView permission request
+                        Log.d("CallActivity", "Android permissions granted, granting WebView permissions");
+                        pendingPermissionRequest.grant(pendingPermissionRequest.getResources());
+                        pendingPermissionRequest = null;
+                    } else {
+                        // Deny the WebView permission request
+                        Log.w("CallActivity", "Android permissions denied, denying WebView permissions");
+                        if (pendingPermissionRequest != null) {
+                            pendingPermissionRequest.deny();
+                            pendingPermissionRequest = null;
+                        }
+                        Toast.makeText(this, "Camera and microphone permissions are required for video calls", Toast.LENGTH_LONG).show();
+                    }
+                }
+        );
+
         // Configure WebView first
         configureWebView();
 
-        // Check permissions before loading URL
-        if (hasRequiredPermissions()) {
-            Log.d("CallActivity", "Permissions granted, loading URL");
-            // Load the URL
-            webView.loadUrl("https://test.popin.to/standalone?token=51&popin=open");
-        } else {
-            Log.w("CallActivity", "Permissions not granted, finishing activity");
-            Toast.makeText(this,
-                    "Please grant camera and microphone permissions from the main screen first",
-                    Toast.LENGTH_LONG).show();
-            finish();
-        }
+        // Load the URL directly - permissions will be handled when WebView requests them
+        Log.d("CallActivity", "Loading URL");
+        webView.loadUrl("https://test.popin.to/standalone?token=51&popin=open");
 
         // Set close button click listener
         closeButton.setOnClickListener(v -> finish());
@@ -137,12 +166,10 @@ public class CallActivity extends AppCompatActivity {
                         }
                     });
                 } else {
-                    // Deny if app doesn't have permissions
-                    Log.w("CallActivity", "Denying permission request - app permissions not granted");
-                    request.deny();
-                    Toast.makeText(CallActivity.this,
-                            "Camera and microphone permissions are required for video calls",
-                            Toast.LENGTH_LONG).show();
+                    // Request Android permissions first
+                    Log.d("CallActivity", "App permissions not granted, requesting Android permissions");
+                    pendingPermissionRequest = request;
+                    requestPermissionLauncher.launch(REQUIRED_PERMISSIONS);
                 }
             }
         });
